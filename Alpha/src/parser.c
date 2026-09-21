@@ -97,7 +97,7 @@ parse_brack(Package *p, Tnode *tok, size_t *pos, bool isbrack) {
    }
    tok->right=p->tnode.size-2;
    if (!parse_scope(p, pos, tok->right, isbrack ? TT_RBRACK : TT_RPARAM) ) {
-      e_push(p, tok, 0, 1, TE_ERROR, TEM_UNCLOSED_BRACK);
+      e_push(p, tok, 0, 0, TE_ERROR, TEM_UNCLOSED_BRACK);
    }
    ++(*pos);
    return true;

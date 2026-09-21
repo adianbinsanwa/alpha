@@ -55,12 +55,12 @@ s_pull(String *array) {
 //###################################//
 
 
-S_Value_res
-s_get(String *array, size_t index) {
-    if (index >= array->size) {
-       return (S_Value_res){.success=false};   
+char *
+s_get(String *s, size_t index) {
+    if (index >= s->size) {
+       return &s->ptr[s->size-2];   
     }
-    return (S_Value_res){.val=array->ptr[index], .success=true};
+    return &s->ptr[index];
 };
 
 
@@ -78,7 +78,7 @@ s_index(String *array, char target) {
 size_t
 s_merge(String *a, String *b) {
     for (size_t i=0; i < b->size; i++) {
-        if (s_push(a, s_get(b, i).val)==SS_PUSH_ERR) {
+        if (s_push(a, *s_get(b, i) )==SS_PUSH_ERR) {
             return strlen(b->ptr)-i;
         }
     }

@@ -33,10 +33,6 @@ typedef struct {
     bool success;
 } S_Index_res;
 
-typedef struct {
-    char val;
-    bool success;
-} S_Value_res;
 
 
 
@@ -48,7 +44,7 @@ STRING_STATUS s_push(String *array, char c);
 
 STRING_STATUS s_pull(String *array);
 
-S_Value_res s_get(String *array, size_t index);
+char *s_get(String *s, size_t index);
 
 size_t s_index(String *array, char target);
 

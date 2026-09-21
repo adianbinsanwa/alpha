@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include <stddef.h>
 #include <string.h>
+
+#include "dynamic_string.h"
 #include "tokens.h"
 #include "tools.h"
 

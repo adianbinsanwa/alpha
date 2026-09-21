@@ -1,0 +1,30 @@
+from: decoders.c
+issues: {
+
+* d_print_errs() still doesn't have ^(carrot)
+  indication and more ...
+
+* has poor error indication cuz source doesn't preserve space
+
+* needs better Err for both "errors" and "notes"
+}
+
+
+from: lexer.c
+issues: {
+
+* word_type() doesn't perfectly check between:-
+  "123", "abc", "_123", "2ab", "0b011010" and "0x59"
+
+* column in Tnode doesn't get counted at all
+
+* doesn't preserve space for unnecessary memory usage yet
+  error indication needs it
+}
+
+
+from: parser.c
+issues: {
+
+* specific statement parsing isn't complete
+}

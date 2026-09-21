@@ -1,5 +1,72 @@
 #include "../header/decoder.h"
 
+//##########-implementation_funcs-###########//
+
+
+void
+_tok_print(String *s, size_t pos, size_t width) {
+    for (size_t i=0; i < width; ++i) {
+        printf("%c", *s_get(s, pos + i) );
+    }
+};
+
+
+
+char *
+_tok_errtype(TE_Msg mtype) {
+    switch (mtype) {
+        case TEM_UNCLOSED_BRACK:
+             return "expected '}'";
+        default:
+             return "      <empty>";
+    }
+};
+
+
+/* Pretty-print the AST as a tree (like the `tree` command).
+ * Starts at the given root index and walks left / right.
+ * Example output:
+ *
+ * Node no: 0
+ * ├── Node no: 1
+ * │   └── Node no: 4
+ * └── Node no: 2
+ */
+static void
+_print_ast_rec(Tnodes *t, size_t idx, const char *prefix, bool is_last) {
+    if ((idx == 0 && t->size <= 1) || (idx >= t->size - 1) ) return;                /* past last real node */
+
+    Tnode *n = t_get(t, idx);
+
+    /* print the current node */
+    printf("%s%s", prefix, is_last ? "└── " : "├── ");
+    printf("Node no: %zu", idx);
+
+    /* optional: also show the token type (very useful while debugging) */
+    printf("  (%s)\n", d_toktype(n->type));
+    //print_tok(s, n->start, n->width);
+    
+    /* prepare the prefix for the children */
+    char child_prefix[256];
+    snprintf(child_prefix, sizeof(child_prefix), "%s%s", prefix, is_last ? "    " : "│   ");
+
+    /* treat left and right as the two children
+       (this matches how you currently wire the tree) */
+    bool has_left  = n->left  != 0;
+    bool has_right = n->right != 0;
+
+    if (has_left) {
+        _print_ast_rec(t, n->left,  child_prefix, !has_right);
+    }
+    if (has_right) {
+        _print_ast_rec(t, n->right, child_prefix, true);
+    }
+}
+
+
+//##########-surface_funcs-############//
+
+
 char *
 d_boolean(int res) {
     switch (res) {
@@ -56,58 +123,6 @@ d_toktype(TnodeType type) {
 };
 
 
-char *
-d_tok_errtype(TE_Msg mtype) {
-    switch (mtype) {
-        case TEM_UNCLOSED_BRACK:
-             return "      unclosed brackets";
-        default:
-             return "      <empty>";
-    }
-};
-
-
-/* Pretty-print the AST as a tree (like the `tree` command).
- * Starts at the given root index and walks left / right.
- * Example output:
- *
- * Node no: 0
- * ├── Node no: 1
- * │   └── Node no: 4
- * └── Node no: 2
- */
-static void
-_print_ast_rec(Tnodes *t, size_t idx, const char *prefix, bool is_last) {
-    if ((idx == 0 && t->size <= 1) || (idx >= t->size - 1) ) return;                /* past last real node */
-
-    Tnode *n = t_get(t, idx);
-
-    /* print the current node */
-    printf("%s%s", prefix, is_last ? "└── " : "├── ");
-    printf("Node no: %zu", idx);
-
-    /* optional: also show the token type (very useful while debugging) */
-    printf("  (%s)\n", d_toktype(n->type));
-    //print_tok(s, n->start, n->width);
-    
-    /* prepare the prefix for the children */
-    char child_prefix[256];
-    snprintf(child_prefix, sizeof(child_prefix), "%s%s", prefix, is_last ? "    " : "│   ");
-
-    /* treat left and right as the two children
-       (this matches how you currently wire the tree) */
-    bool has_left  = n->left  != 0;
-    bool has_right = n->right != 0;
-
-    if (has_left) {
-        _print_ast_rec(t, n->left,  child_prefix, !has_right);
-    }
-    if (has_right) {
-        _print_ast_rec(t, n->right, child_prefix, true);
-    }
-}
-
-
 void
 d_print_ast(Tnodes *t, size_t root) {
     if (!t || !t->val || t->size < 2) {
@@ -133,9 +148,16 @@ d_print_ast(Tnodes *t, size_t root) {
 void
 d_print_errs(Package *p) {
     Err *err;
-    for (size_t i=0; i <= p->e_size; ++i) {
+    for (size_t i=0; i < p->e_size; ++i) {
         err=&p->errors[i];
         printf("%s:%zu:%zu: ", p->filename, err->tok->row, err->tok->column);
-        printf("error:\n%s\n      ", d_tok_errtype(err->mtype) );
+        printf("error:\n      %s\n    %zu |  ", _tok_errtype(err->mtype), err->tok->row );
+        
+        if (err->tok->column) {
+            printf("...");
+        } else {
+            printf("   ");
+        }
+        _tok_print(&p->source, err->tok->start, err->tok->width);
     }
 };
