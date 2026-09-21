@@ -46,7 +46,7 @@ s_pull(String *array) {
     if (!array->ptr) {
         return SS_PULL_ERR;
     }
-    array->ptr[--array->size]='\0';
+    array->ptr[--array->size-1]='\0';
     ++array->capacity;
     return SS_NO_ERR;
 };

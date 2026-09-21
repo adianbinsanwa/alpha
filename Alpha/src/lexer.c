@@ -1,6 +1,14 @@
 #include "../header/lexer.h"
-#include <unistd.h>
+
 //#include <errno.h> #include <string.h>
+
+/* 
+ * incomplete stuff:
+ *     column at :- lexer(),
+ *     proper word checking at :- word_type(),
+ */
+
+bool char_scanner(FILE *pf, Package *p);
 
 TnodeType
 symbol_type(char symb) {
@@ -30,8 +38,7 @@ symbol_type(char symb) {
 
 TnodeType
 word_type(String *s, size_t pos, size_t width) {
-    
-    return tok_check(s, pos, width, s_0_9, false)? TT_NUM : TT_WORD;
+    return tok_check(s, pos, width, s_0_9, match_within) ? TT_NUM : TT_WORD;
 };
 
 size_t
@@ -41,7 +48,29 @@ get_column(size_t a, size_t b) {
 
 
 bool
-char_scanner(FILE *pf, Package *pack, char *filename) {
+check_last_toktype(Tnodes *t, TnodeType istype) {
+    return t->val[t->size-2].type==istype;
+};
+
+//###############-entry_point-#############//
+
+bool
+lexer(Package *p) {
+    //open file
+    FILE *pfile= fopen(p->filename, "r");
+    
+    if (!pfile) {
+        //0//if file not open
+        perror(p->filename);
+        return false;
+    }
+    return char_scanner(pfile, p);//tokenize
+};
+
+//############-tokenizer-#############//
+
+bool
+char_scanner(FILE *pf, Package *p) {
     /*load file and manage line ends
      *split words/chars and pack tokens
      *pos tracks the normalized source
@@ -50,19 +79,18 @@ char_scanner(FILE *pf, Package *pack, char *filename) {
     //system
     
     size_t pos=0;//current pos throughout the whole file string
-    size_t column=0;//flag to indicate if previous char was a newline or not
-    size_t row=1;
+    size_t column=0;//column count
+    size_t row=1;//row count
     //helpers
-    char quote='\0';//a quote holder indicating in quotes + which quote "=2/'=1/none=0
+    char quote='\0';//quote holder indicating in quotes + which quote "=2/'=1/none=0
     size_t w_size=0;//counts the size of the word
     size_t w_start;//holds the start pos of a word
     
     //error to return when something internal goes wrong
     bool ierr=false;
     
-    Package p=*pack;
                 
-    if (!t_push(p.tnode, t_node(0, 0, TT_SCOPE, 0, 0) ) ) {
+    if (!t_push(&p->tnode, tok_node(0, 0, TT_SCOPE, 0, 0) ) ) {
         //0//token push
         printf("exception: pushing 'tnode'\n");
         return ierr;
@@ -73,7 +101,7 @@ char_scanner(FILE *pf, Package *pack, char *filename) {
         //0//
         char atom=(char)a;//cast int a to char
         
-        if (s_push(p.source, atom)!=SS_NO_ERR) {
+        if (s_push(&p->source, atom)!=SS_NO_ERR) {
             //1//source push
             printf("exception: pushing 'source'\n");
             return ierr;
@@ -83,8 +111,9 @@ char_scanner(FILE *pf, Package *pack, char *filename) {
             ++w_size;//inc word size
             if (atom==quote) {
                 //2//if quote terminated
-                Tnode new=t_node(w_start, w_size, atom=='\'' ? TT_CHAR : TT_STRING, row, get_column(column, w_size) );
-                if (!t_push(p.tnode, new) ) {
+                Tnode new=tok_node(w_start, w_size, atom=='\'' ? TT_CHAR : TT_STRING, row, get_column(column, w_size) );
+                
+                if (!t_push(&p->tnode, new) ) {
                     //3//token push
                     printf("exception: pushing 'tnode'\n");
                     return ierr;
@@ -97,7 +126,7 @@ char_scanner(FILE *pf, Package *pack, char *filename) {
                 if (next==EOF) {
                     break;//3//break if EOF
                 }
-                if (s_push(p.source, (char)next)!=SS_NO_ERR) {
+                if (s_push(&p->source, (char)next)!=SS_NO_ERR) {
                     //3//source push
                     printf("exception: pushing 'source'\n");
                     return ierr;
@@ -110,9 +139,9 @@ char_scanner(FILE *pf, Package *pack, char *filename) {
             //1//if valid symbols
             if (w_size) {
                 //2//if previous not appended
-                Tnode new=t_node(w_start, w_size, word_type(p.source, w_start, w_size), row, get_column(column, w_size) );
+                Tnode new=tok_node(w_start, w_size, word_type(&p->source, w_start, w_size), row, get_column(column, w_size) );
                 
-                if (!t_push(p.tnode, new) ) {
+                if (!t_push(&p->tnode, new) ) {
                     //3//token push
                     printf("exception: pushing 'tnode'\n");
                     return ierr;
@@ -121,21 +150,21 @@ char_scanner(FILE *pf, Package *pack, char *filename) {
             }
             if (atom!=' ') {
                 //2//allow everything except ' '
-                if (atom=='\n' && p.tnode->val[p.tnode->size-2].type==TT_ENDLN) {
-                    s_pull(p.source);//3//if an newline already appended
+                if (atom=='\n' && (check_last_toktype(&p->tnode, TT_ENDLN) || check_last_toktype(&p->tnode, TT_COMMA) ) ) {
+                    s_pull(&p->source);//3//if an newline already appended
                     --pos;//restore the unnecessary incremented pos
                 } else {
                     //3//
-                    Tnode new=t_node(pos, 1, symbol_type(atom), row, column);
+                    Tnode new=tok_node(pos, 1, symbol_type(atom), row, column);
                 
-                    if (!t_push(p.tnode, new) ) {
+                    if (!t_push(&p->tnode, new) ) {
                         //4//token push
                         printf("exception: pushing 'tnode'\n");
                         return ierr;
                     }
                 }
             } else {
-                s_pull(p.source);//2//if space then remove it
+                s_pull(&p->source);//2//if space then remove it
                 //update column
                 continue;//continue without incrementing pos
             }
@@ -147,9 +176,9 @@ char_scanner(FILE *pf, Package *pack, char *filename) {
             //1//if comment
             if (w_size) {
                 //2//if previous not appended
-                Tnode new=t_node(w_start, w_size, word_type(p.source, w_start, w_size), row, get_column(column, w_size) );
+                Tnode new=tok_node(w_start, w_size, word_type(&p->source, w_start, w_size), row, get_column(column, w_size) );
                 
-                if (!t_push(p.tnode, new) ) {
+                if (!t_push(&p->tnode, new) ) {
                     //3//token push
                     printf("exception: pushing 'tnode'\n");
                     return ierr;
@@ -162,19 +191,19 @@ char_scanner(FILE *pf, Package *pack, char *filename) {
             }
             if (next==EOF) {
                 break;//2//
-            } else if (p.tnode->val[p.tnode->size-2].type!=TT_ENDLN) {
+            } else if (check_last_toktype(&p->tnode, TT_ENDLN) ) {
+                s_pull(&p->source);//2//if precious char was a newline then remove it
+                --pos;//restore the unnecessary incremented pos
+            } else {
                 //2//if previous token was newline
-                p.source->ptr[p.source->size-2]=(char)next;
-                Tnode new=t_node(pos, 1, TT_ENDLN, row, column);
+                p->source.ptr[p->source.size-2]=(char)next;
+                Tnode new=tok_node(pos, 1, TT_ENDLN, row, column);
                 
-                if (!t_push(p.tnode, new) ) {
+                if (!t_push(&p->tnode, new) ) {
                     //3//token push
                     printf("exception: pushing 'tnode'\n");
                     return ierr;
                 }
-            } else {
-                s_pull(p.source);//2//if precious char was a newline then remove it
-                --pos;//restore the unnecessary incremented pos
             }
             column=0;//2//reset column
             ++row;//update row
@@ -186,12 +215,15 @@ char_scanner(FILE *pf, Package *pack, char *filename) {
                 if (s_member_of("'\"", atom) ) {
                     //3//if it's a opening quote
                     quote=atom;//set the quote
-                }
+                } 
+            } else if (w_size==1 && (s_member_of(s_a_zA_Z_, p->source.ptr[w_start + w_size]) && !s_member_of(s_a_zA_Z_, p->source.ptr[w_start]) ) ) {
+                printf("%s:%zu:%zu: error:\n      invalid syntax\n        %c...\n", p->filename, row, column, p->source.ptr[pos]);
+                return ierr;
             }
             ++w_size;//inc word size
         } else {
             //1//else error
-            printf("%s:%zu:%zu: error:\n        '%c'\n", filename, row, column, atom);
+            printf("%s:%zu:%zu: error:\n        '%c'\n", p->filename, row, column, atom);
             return ierr;
         }
         //column update
@@ -199,61 +231,24 @@ char_scanner(FILE *pf, Package *pack, char *filename) {
     }
     if (quote!='\0') {
         //0//if quote not terminated
-        printf("%s:%zu:%zu: error:\n       ", filename, row, column);
+        printf("%s:%zu:%zu: error:\n       ", p->filename, row, column);
         //t_print(p.source, w_start, w_size);
         printf("\n");
         return ierr;
     } else if (w_size) {
         //0//if previous word not appended
-        Tnode new=t_node(w_start, w_size, word_type(p.source, w_start, w_size), row, get_column(column, w_size) );
+        Tnode new=tok_node(w_start, w_size, word_type(&p->source, w_start, w_size), row, get_column(column, w_size) );
         
-        if (!t_push(p.tnode, new) ) {
+        if (!t_push(&p->tnode, new) ) {
             //1//token push
             printf("error pushing for 'tnode'\n");
             return ierr;
         }
+    } else if (check_last_toktype(&p->tnode, TT_ENDLN) ) {
+        //0//if last token was newline → remove it from tnodes and source
+        t_pull(&p->tnode);
+        s_pull(&p->source);
     }
     fclose(pf);//close file
     return true;
 };
-
-
-
-bool
-lexer(char *filename, Package *pack) {
-    //open file
-    FILE *pfile= fopen(filename, "r");
-    
-    if (!pfile) {
-        //0//if file not open
-        perror(filename);
-        return false;
-    }
-    return char_scanner(pfile, pack, filename);//tokenize
-};
-
-
-
-/*int main() {
-    String v=s_open();
-    Tnodes t=t_open();
-    bool res=lexer("../newfile.a", (Package){.source=&v, .tnode=&t});
-    
-    if (res){
-        printf("data=%s, size=%zu\n", v.ptr, v.size-1);
-        for (size_t i=0; i < t.size-1; ++i) {
-            t_print(&v, t.val[i].start, t.val[i].width);
-            printf(", type=%s, pos:%zu:%zu, fpos:%zu\n\n", d_toktype(t.val[i].type), t.val[i].row, t.val[i].column, t.val[i].start);
-        }
-    }
-    char *c=getcwd(NULL, 0);
-    if (c) {   
-        printf("%s", c);
-        free(c);
-    }
-      
-    s_close(&v);
-    t_close(&t);
-    return 0;
-};*/
-

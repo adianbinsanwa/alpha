@@ -6,18 +6,19 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include "dynamic_string.h"
-#include "error_manager.h"
 #include "tokens.h"
 #include "decoder.h"
+#include "tools.h"
 
 
+bool lexer(Package *p);
 
-typedef struct {
-    String *source;
-    Tnodes *tnode;
-} Package;
-
-
-bool lexer(char *filename, Package *pack);
 
 #endif //LEXER_H
+
+//files lexer.h is included
+
+/*
+ * main.h
+ * 
+ */

@@ -7,6 +7,21 @@
 
 #include "dynamic_string.h"
 
+extern bool match_all;
+extern bool match_within;
+
+
+typedef enum {
+    TE_INTERNAL,
+    TE_ERROR,
+} TE_Type;
+
+
+typedef enum {
+    TEM_UNCLOSED_BRACK,
+} TE_Msg;
+
+
 typedef enum {
     TT_END,//0
     TT_NUM,//1
@@ -45,31 +60,36 @@ typedef struct {
 typedef struct {
     Tnode *val;
     size_t size;
+    size_t capacity;
 } Tnodes;
 
 
 Tnodes t_open();
 
-char *d_toktype(TnodeType type);
+bool t_push(Tnodes *tns, Tnode tn);
 
-void tok_print(String *s, Tnode *t);
-
-void t_close(Tnodes *t);
-
-Tnode t_node(size_t start, size_t width, size_t type, size_t row, size_t column);
+bool t_pull(Tnodes *t);
 
 Tnode *t_get(Tnodes *t, size_t pos);
 
-Tnode t_expand_paddin(void);
+void t_close(Tnodes *t);
 
-void t_print(String *s, size_t pos, size_t width);
+//##########-token_funcs-############//
 
-//void t_error(String *s, size_t pos, size_t width);
+Tnode tok_node(size_t start, size_t width, size_t type, size_t row, size_t column);
 
-bool t_push(Tnodes *tns, Tnode tn);
+Tnode tok_expand_paddin(void);
 
-bool tok_check(String *s, size_t strt, size_t width, char *target, bool match_all);
+bool tok_check(String *s, size_t start, size_t width, char *target, bool match_all);
 
-void toks_print(String *s, Tnodes *t);
-    
 #endif //TOKENS_H
+
+//files tokens.h is included
+/* 
+ * main.h
+ * tools.h
+ * lexer.h
+ * parser.h
+ * decoder.h
+ */
+
