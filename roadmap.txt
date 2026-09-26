@@ -1,0 +1,29 @@
+lexer: done
+|
+|
+|
+parser: in_progress
+|
+|
+|
+.air: pending
+|
+|
+|
+omega(ARM 64 generator): pending
+|
+|
+|
+Alpha file io module: pending
+|
+|
+|
+.ash turtle shell module system: pending
+|
+|
+|
+alc written in Aplha: pending
+|
+|
+|
+omega written in Alpha: pending

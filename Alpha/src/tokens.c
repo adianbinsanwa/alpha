@@ -46,11 +46,27 @@ t_get(Tnodes *t, size_t pos) {
 };
 
 
-Tnode
-tok_expand_paddin(void) {
-    return tok_node(0, 0, TT_PADDIN, 0, 0);
+Tnode *
+tok_expand_paddin(Tnodes *t, size_t left, size_t right) {
+    Tnode paddin= tok_node(0, 0, TT_PADDIN, 0, 0);
+    
+    paddin.left=left; 
+    paddin.right=right;
+    
+    if (!t_push(t, paddin) ) {
+        return t_get(t, t->size - 1);
+    }
+    return t_get(t, t->size - 2);
 };
 
+
+Tnode *
+tok_new_scope(Tnodes *t) {
+    if (!t_push(t, tok_node(0, 0, TT_SCOPE, 0, 0) ) ) {
+        return t_get(t, t->size - 1);
+    }
+    return t_get(t, t->size - 2);
+};
 
 bool
 t_push(Tnodes *tns, Tnode tn) {
@@ -80,22 +96,13 @@ t_pull(Tnodes *t) {
 };
 
 bool
-tok_check(String *s, size_t start, size_t width, char *target, bool match_all) {
-    if (!match_all) {
-        for (size_t i=0; i < width; ++i) {
-            if (!s_member_of(target, s->ptr[start + i]) ) {
-                return false;
-            }
-        }
-        return true;
-    } else if (width != strlen(target) ) {
-        return false;
+tok_check(String *s, Tnode *tok, char *target, bool match_all) {
+    char word[tok->width];
+    
+    for (size_t i=0; i < tok->width; ++i) {
+        word[i]=*s_get(s, tok->start + i);
     }
-    for (size_t i=0; i < width; ++i) {
-        if (s->ptr[start + i]!= target[i]) {
-            return false;
-        }
-    }
-    return true;
+    word[tok->width]='\0';
+    return match_all ? s_eq(word, target) : s_has_only_from(word, target);
 };
 

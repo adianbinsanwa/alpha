@@ -38,12 +38,34 @@ symbol_type(char symb) {
 
 TnodeType
 word_type(String *s, size_t pos, size_t width) {
-    return tok_check(s, pos, width, s_0_9, match_within) ? TT_NUM : TT_WORD;
+    char word[width];
+    
+    for (size_t i=0; i < width; ++i) {
+        word[i]=*s_get(s, pos + i);
+    }
+    word[width]='\0';
+    if (s_member_of(s_a_zA_Z_, word[0]) ) {
+        //0//
+        return TT_WORD;
+    } else if (width > 2 && word[0]=='0' && s_member_of("xb", word[1]) ) {
+        //0//
+        return word[1]=='x' ? TT_HEX : TT_BIN;
+    } else if (s_has_only_from(word, s_0_9) ) {
+        //0//
+        return TT_NUM;
+    } else {
+        //0//
+        printf("error");
+        return TT_END;
+    }
+    
+    return TT_NUM;
 };
+
 
 size_t
 get_column(size_t a, size_t b) {
-    return a;
+    return a - b;
 };
 
 
@@ -88,13 +110,14 @@ char_scanner(FILE *pf, Package *p) {
     
     //error to return when something internal goes wrong
     bool ierr=false;
-    
+    TnodeType temp;
                 
     if (!t_push(&p->tnode, tok_node(0, 0, TT_SCOPE, 0, 0) ) ) {
         //0//token push
         printf("exception: pushing 'tnode'\n");
         return ierr;
     }
+    
     
     int a;
     while ((a=fgetc(pf) ) != EOF) {
@@ -131,15 +154,21 @@ char_scanner(FILE *pf, Package *p) {
                     printf("exception: pushing 'source'\n");
                     return ierr;
                 }
-                //aggresive update
+                ++column;//aggresive update
                 ++w_size;
                 ++pos;
+            } else if (atom=='\n') {
+                printf("error: ");
+                return ierr;
             }
         } else if (s_member_of(" \n(){},", atom) ) {
             //1//if valid symbols
             if (w_size) {
                 //2//if previous not appended
-                Tnode new=tok_node(w_start, w_size, word_type(&p->source, w_start, w_size), row, get_column(column, w_size) );
+                if ((temp= word_type(&p->source, w_start, w_size) )==TT_END ) {
+                    return ierr;
+                }
+                Tnode new=tok_node(w_start, w_size, temp, row, get_column(column, w_size) );
                 
                 if (!t_push(&p->tnode, new) ) {
                     //3//token push
@@ -148,25 +177,20 @@ char_scanner(FILE *pf, Package *p) {
                 }
                 w_size=0;//reset size
             }
-            if (atom!=' ') {
-                //2//allow everything except ' '
-                if (atom=='\n' && (check_last_toktype(&p->tnode, TT_ENDLN) || check_last_toktype(&p->tnode, TT_COMMA) ) ) {
-                    s_pull(&p->source);//3//if an newline already appended
-                    --pos;//restore the unnecessary incremented pos
-                } else {
-                    //3//
-                    Tnode new=tok_node(pos, 1, symbol_type(atom), row, column);
+            
+            if (atom==',' && check_last_toktype(&p->tnode, TT_COMMA) ) {
+                //2//if an newline already appended
+                printf("error");
+                return ierr;
+            } else if (atom!=' ') {
+                //2//
+                Tnode new=tok_node(pos, 1, symbol_type(atom), row, column);
                 
-                    if (!t_push(&p->tnode, new) ) {
-                        //4//token push
-                        printf("exception: pushing 'tnode'\n");
-                        return ierr;
-                    }
+                if (!t_push(&p->tnode, new) ) {
+                    //3//token push
+                    printf("exception: pushing 'tnode'\n");
+                    return ierr;
                 }
-            } else {
-                s_pull(&p->source);//2//if space then remove it
-                //update column
-                continue;//continue without incrementing pos
             }
             if (atom=='\n') {
                 column=0;//2//reset column
@@ -176,7 +200,10 @@ char_scanner(FILE *pf, Package *p) {
             //1//if comment
             if (w_size) {
                 //2//if previous not appended
-                Tnode new=tok_node(w_start, w_size, word_type(&p->source, w_start, w_size), row, get_column(column, w_size) );
+                if ((temp= word_type(&p->source, w_start, w_size) )==TT_END) {
+                    return ierr;
+                }
+                Tnode new=tok_node(w_start, w_size, temp, row, get_column(column, w_size) );
                 
                 if (!t_push(&p->tnode, new) ) {
                     //3//token push
@@ -188,12 +215,10 @@ char_scanner(FILE *pf, Package *p) {
             int next;
             while ((next=fgetc(pf) )!=EOF && (char)next!='\n') {
                 //2//filter everything until EOF or \n
+                ++column;
             }
             if (next==EOF) {
                 break;//2//
-            } else if (check_last_toktype(&p->tnode, TT_ENDLN) ) {
-                s_pull(&p->source);//2//if precious char was a newline then remove it
-                --pos;//restore the unnecessary incremented pos
             } else {
                 //2//if previous token was newline
                 p->source.ptr[p->source.size-2]=(char)next;
@@ -216,9 +241,6 @@ char_scanner(FILE *pf, Package *p) {
                     //3//if it's a opening quote
                     quote=atom;//set the quote
                 } 
-            } else if (w_size==1 && (s_member_of(s_a_zA_Z_, p->source.ptr[w_start + w_size]) && !s_member_of(s_a_zA_Z_, p->source.ptr[w_start]) ) ) {
-                printf("%s:%zu:%zu: error:\n      invalid syntax\n        %c...\n", p->filename, row, column, p->source.ptr[pos]);
-                return ierr;
             }
             ++w_size;//inc word size
         } else {
@@ -226,28 +248,29 @@ char_scanner(FILE *pf, Package *p) {
             printf("%s:%zu:%zu: error:\n        '%c'\n", p->filename, row, column, atom);
             return ierr;
         }
-        //column update
+        ++column;//column update
         ++pos;//every pos update
     }
     if (quote!='\0') {
         //0//if quote not terminated
         printf("%s:%zu:%zu: error:\n       ", p->filename, row, column);
-        //t_print(p.source, w_start, w_size);
         printf("\n");
         return ierr;
     } else if (w_size) {
         //0//if previous word not appended
-        Tnode new=tok_node(w_start, w_size, word_type(&p->source, w_start, w_size), row, get_column(column, w_size) );
+        if ((temp= word_type(&p->source, w_start, w_size) )==TT_END ) {
+            return ierr;
+        }
+        Tnode new=tok_node(w_start, w_size, temp, row, get_column(column, w_size) );
         
         if (!t_push(&p->tnode, new) ) {
             //1//token push
             printf("error pushing for 'tnode'\n");
             return ierr;
         }
-    } else if (check_last_toktype(&p->tnode, TT_ENDLN) ) {
+    } else if (check_last_toktype(&p->tnode, TT_COMMA) ) {
         //0//if last token was newline → remove it from tnodes and source
-        t_pull(&p->tnode);
-        s_pull(&p->source);
+        printf("error: invalid ','");
     }
     fclose(pf);//close file
     return true;

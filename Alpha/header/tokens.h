@@ -23,26 +23,46 @@ typedef enum {
 
 
 typedef enum {
-    TT_END,//0
-    TT_NUM,//1
+    TT_END,
+    TT_NUM,
+    TT_HEX,
+    TT_BIN,
     
-    TT_WORD,//2
-    TT_CHAR,//3
-    TT_BOOL,//4
-    TT_NONE,//5
+    TT_WORD,
+    TT_CHAR,
+    TT_BOOL,
+    TT_NONE,
     
-    TT_COMMA,//6
-    TT_ENDLN,//7
-    TT_SCOPE,//8
+    TT_COMMA,
+    TT_ENDLN,
+    TT_SCOPE,
+    TT_KW_BE,
+    TT_KW_AS,
+    TT_KW_OR,
+    TT_KW_IF,
     
-    TT_STRING,//9
-    TT_LPARAM,//10
-    TT_RPARAM,//11
-    TT_LBRACK,//12
-    TT_RBRACK,//13
-    TT_PADDIN,//14
-    TT_KEYWORD,//15
-    TT_IDENTIFIER//16
+    TT_STRING,
+    TT_LPARAM,
+    TT_RPARAM,
+    TT_LBRACK,
+    TT_RBRACK,
+    TT_PADDIN,
+    TT_KW_LET,
+    TT_KW_AND,
+    TT_KW_NOT,
+    TT_KW_RET,
+    TT_KW_FOR,
+    TT_KW_SET,
+    
+    TT_KW_FUNC,
+    TT_KW_ELSE,
+    TT_KW_FROM,
+    
+    TT_KEYWORD,
+    
+    TT_KW_WHILE,
+    
+    TT_IDENTIFIER
 } TnodeType;
 
 
@@ -78,9 +98,9 @@ void t_close(Tnodes *t);
 
 Tnode tok_node(size_t start, size_t width, size_t type, size_t row, size_t column);
 
-Tnode tok_expand_paddin(void);
+Tnode *tok_expand_paddin(Tnodes *t, size_t left, size_t right);
 
-bool tok_check(String *s, size_t start, size_t width, char *target, bool match_all);
+bool tok_check(String *s, Tnode *tok, char *target, bool match_all);
 
 #endif //TOKENS_H
 

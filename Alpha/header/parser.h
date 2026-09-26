@@ -5,6 +5,7 @@
 #include "dynamic_string.h"
 #include "tokens.h"
 #include "tools.h"
+#include "decoder.h"
 
 
 bool parser(Package *p);

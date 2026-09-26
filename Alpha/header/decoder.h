@@ -14,7 +14,9 @@ char *d_boolean(int res);
 
 char *d_toktype(TnodeType type);
 
-void d_print_ast(Tnodes *t, size_t root);
+void d_print_ast(String *s, Tnodes *t, size_t root);
+
+void d_print_toks(String *s, Tnodes *t, size_t pos, size_t lim);
 
 void d_print_errs(Package *p);
 

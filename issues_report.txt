@@ -21,6 +21,12 @@ issues: {
 * doesn't preserve space for unnecessary memory usage yet
   error indication needs it
 }
+resolved: {
+
+* now preserves spaces and newlines
+
+* column is counted accurately
+}
 
 
 from: parser.c
@@ -28,3 +34,5 @@ issues: {
 
 * specific statement parsing isn't complete
 }
+
+

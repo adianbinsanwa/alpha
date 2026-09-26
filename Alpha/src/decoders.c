@@ -6,7 +6,17 @@
 void
 _tok_print(String *s, size_t pos, size_t width) {
     for (size_t i=0; i < width; ++i) {
+        //0//
+        if (*s_get(s, pos + i)=='\n') {
+            //1//
+            printf("\\newline");
+            continue;
+        }
         printf("%c", *s_get(s, pos + i) );
+    }
+    if (width==0) {
+        //0//
+        printf("NULL");
     }
 };
 
@@ -33,33 +43,44 @@ _tok_errtype(TE_Msg mtype) {
  * └── Node no: 2
  */
 static void
-_print_ast_rec(Tnodes *t, size_t idx, const char *prefix, bool is_last) {
-    if ((idx == 0 && t->size <= 1) || (idx >= t->size - 1) ) return;                /* past last real node */
+_print_ast_rec(String *s, Tnodes *t, size_t idx, const char *prefix, bool is_last) {
+    if ((idx == 0 && t->size <= 1) || (idx >= t->size) ) return;                /* past last real node */
 
     Tnode *n = t_get(t, idx);
 
     /* print the current node */
     printf("%s%s", prefix, is_last ? "└── " : "├── ");
-    printf("Node no: %zu", idx);
-
-    /* optional: also show the token type (very useful while debugging) */
-    printf("  (%s)\n", d_toktype(n->type));
-    //print_tok(s, n->start, n->width);
+    printf("Node: %zu", idx);
     
+    /* optional: also show the token type (very useful while debugging) */
+    if (n->type==TT_IDENTIFIER || n->type==TT_WORD || n->type==TT_HEX || n->type==TT_BIN || n->type==TT_NUM) {
+        //0//
+        printf(" (");
+        _tok_print(s, n->start, n->width);
+        printf(")\n");
+    } else {
+        //0//
+        printf(" (%s)\n", d_toktype(n->type) );
+    }
     /* prepare the prefix for the children */
     char child_prefix[256];
     snprintf(child_prefix, sizeof(child_prefix), "%s%s", prefix, is_last ? "    " : "│   ");
 
     /* treat left and right as the two children
        (this matches how you currently wire the tree) */
-    bool has_left  = n->left  != 0;
     bool has_right = n->right != 0;
+    bool has_left = n->left != 0;
+    
 
     if (has_left) {
-        _print_ast_rec(t, n->left,  child_prefix, !has_right);
+        //0//
+        printf("%s%s\n", child_prefix, "│");
+        _print_ast_rec(s, t, n->left,  child_prefix, !has_right);
     }
     if (has_right) {
-        _print_ast_rec(t, n->right, child_prefix, true);
+        //0//
+        printf("%s%s\n", child_prefix, "│");
+        _print_ast_rec(s, t, n->right, child_prefix, true);
     }
 }
 
@@ -83,10 +104,14 @@ d_boolean(int res) {
 char *
 d_toktype(TnodeType type) {
     switch (type) {
+        case TT_BIN:
+             return "BINARY";
+        case TT_HEX:
+             return "HEX";   
         case TT_END:     
              return "END";
         case TT_NUM:     
-             return "NUM";
+             return "NUM"; 
         case TT_WORD:    
              return "WORD";
         case TT_CHAR:    
@@ -99,6 +124,12 @@ d_toktype(TnodeType type) {
              return "COMMA";
         case TT_ENDLN:  
              return "ENDLN";
+        case TT_SCOPE:
+             return "SCOPE";
+        case TT_KW_BE:
+             return "KW_BE";
+        case TT_KW_AS:
+             return "KW_AS";
         case TT_STRING:  
              return "STRING";
         case TT_LPARAM:  
@@ -111,10 +142,20 @@ d_toktype(TnodeType type) {
              return "RBRACK";
         case TT_PADDIN:  
              return "PADDIN";
+        case TT_KW_LET:
+             return "KW_LET";
+        case TT_KW_SET:
+             return "KW_SET";
+        case TT_KW_AND:
+             return "KW_AND";
+        case TT_KW_NOT:
+             return "KW_NOT";
+        case TT_KW_FOR:
+             return "KW_FOR";
+        case TT_KW_RET:
+             return "KW_RET";
         case TT_KEYWORD:
              return "KEYWORD";
-        case TT_SCOPE:
-             return "SCOPE";
         case TT_IDENTIFIER:
              return "IDENTIFIER";
         default:         
@@ -124,40 +165,73 @@ d_toktype(TnodeType type) {
 
 
 void
-d_print_ast(Tnodes *t, size_t root) {
-    if (!t || !t->val || t->size < 2) {
-        printf("(empty AST)\n");
-        return;
-    }
-
+d_print_ast(String *s, Tnodes *t, size_t root) {
     /* root line (no ├── / └──) */
     Tnode *n = t_get(t, root);
-    printf("Node no: %zu  (%s)\n", root, d_toktype(n->type) );
+    printf("Node: %zu  (%s)\n", root, d_toktype(n->type) );
 
     char prefix[256] = "";
-    bool has_left  = n->left  != 0;
     bool has_right = n->right != 0;
 
-    if (has_left)
-        _print_ast_rec(t, n->left,  prefix, !has_right);
-    if (has_right)
-        _print_ast_rec(t, n->right, prefix, true);
+    if (n->left  != 0) {
+        //0//
+        printf("%s\n", "│");
+        _print_ast_rec(s, t, n->left,  prefix, !has_right);
+    }
+    if (has_right) {
+        //0//
+        printf("%s\n", "│");
+        _print_ast_rec(s, t, n->right, prefix, true);
+    }
 }
 
 
 void
-d_print_errs(Package *p) {
-    Err *err;
-    for (size_t i=0; i < p->e_size; ++i) {
-        err=&p->errors[i];
-        printf("%s:%zu:%zu: ", p->filename, err->tok->row, err->tok->column);
-        printf("error:\n      %s\n    %zu |  ", _tok_errtype(err->mtype), err->tok->row );
-        
-        if (err->tok->column) {
-            printf("...");
-        } else {
-            printf("   ");
-        }
-        _tok_print(&p->source, err->tok->start, err->tok->width);
+d_print_toks(String *s, Tnodes *t, size_t pos, size_t lim) {
+    Tnode *tok=t_get(t, pos);
+    
+    printf("no: %zu\n    val: ", pos);
+    _tok_print(s, tok->start, tok->width);
+    
+    printf("\n    type: %s\n    row: %zu\n    column: %zu\n    left: %zu\n    right: %zu\n\n", d_toktype(tok->type), tok->row, tok->column, tok->left, tok->right);
+    if (lim - 1!=0 && tok->type != TT_END) {
+        //0//
+        d_print_toks(s, t, pos + 1, lim - 1);
     }
+};
+
+
+void
+_print_errs(Package *p, size_t pos) {
+    Err *err=&p->errors[pos];
+    
+    printf("%s:%zu:%zu: ", p->filename, err->tok->row, err->tok->column);
+    
+    printf("%s:\n      %s\n    %zu | ", err->type==TE_ERROR ? "error" : "internal_error" , _tok_errtype(err->mtype), err->tok->row );
+    
+    size_t line_start= err->tok->start - err->tok->column;
+    
+    _tok_print(&p->source, line_start, err->tok->column + err->tok->width);
+    printf("\n        ");
+    
+    for (size_t i=0; i < err->tpos + err->tok->column; ++i) {
+        printf(" "); //0//
+    }
+    for (size_t i=0; i < err->twidth; ++i) {
+        printf("^"); //0//
+    }
+    
+    
+    if (pos != p->e_size - 1) {
+        //0//
+        _print_errs(p, pos + 1);
+    }
+};
+
+void
+d_print_errs(Package *p) {
+    if (p->e_size==0) {
+        return;
+    }
+    _print_errs(p, 0);
 };

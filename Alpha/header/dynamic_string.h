@@ -54,4 +54,6 @@ bool s_member_of(char *string, char target);
 
 bool s_eq(char *a, char *b);
 
+bool s_has_only_from(char *a, char *b);
+
 #endif //DYNAMIC_STRING_H

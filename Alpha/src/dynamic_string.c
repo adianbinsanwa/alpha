@@ -120,3 +120,14 @@ s_eq(char *a, char *b) {
     }
     return true;
 };
+
+
+bool
+s_has_only_from(char *a, char *b) {
+    for (size_t i=0; i < strlen(a); ++i) {
+        if (!s_member_of(b, a[i]) ) {
+            return false;
+        }
+    }
+    return true;
+};
