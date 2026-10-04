@@ -6,6 +6,8 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <string.h>
+#include <stdint.h>
+
 #include "dynamic_string.h"
 #include "tokens.h"
 #include "decoder.h"

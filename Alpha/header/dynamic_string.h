@@ -8,9 +8,9 @@
 #include <string.h>
 
 
-extern char *s_a_zA_Z;
-extern char *s_a_zA_Z_;
-extern char *s_0_9;
+extern const char *const s_a_zA_Z;
+extern const char *const s_a_zA_Z_;
+extern const char *const s_0_9;
 
 typedef enum {
     SS_NO_ERR,
@@ -28,14 +28,6 @@ typedef struct {
 } String;
 
 
-typedef struct {
-    char val;
-    bool success;
-} S_Index_res;
-
-
-
-
 String s_open(void);
 
 void s_close(String *array);
@@ -46,14 +38,10 @@ STRING_STATUS s_pull(String *array);
 
 char *s_get(String *s, size_t index);
 
-size_t s_index(String *array, char target);
+bool s_member_of(const char *const string, const char target);
 
-size_t s_merge(String *a, String *b);
+bool s_eq(const char *const a, const char *const b);
 
-bool s_member_of(char *string, char target);
-
-bool s_eq(char *a, char *b);
-
-bool s_has_only_from(char *a, char *b);
+bool s_has_only_from(char *a, const char *const b);
 
 #endif //DYNAMIC_STRING_H

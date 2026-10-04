@@ -14,7 +14,7 @@ _tok_print(String *s, size_t pos, size_t width) {
         }
         printf("%c", *s_get(s, pos + i) );
     }
-    if (width==0) {
+    if (!width) {
         //0//
         printf("NULL");
     }
@@ -33,6 +33,11 @@ _tok_errtype(TE_Msg mtype) {
 };
 
 
+bool
+_d_print_val(TnodeType type) {
+    return type==TT_IDENTIFIER || type==TT_WORD || type==TT_BIN || type==TT_HEX || type==TT_NUM || type==TT_CHAR;
+}
+
 /* Pretty-print the AST as a tree (like the `tree` command).
  * Starts at the given root index and walks left / right.
  * Example output:
@@ -43,7 +48,7 @@ _tok_errtype(TE_Msg mtype) {
  * └── Node no: 2
  */
 static void
-_print_ast_rec(String *s, Tnodes *t, size_t idx, const char *prefix, bool is_last) {
+_print_ast_rec(String *s, Tnodes *t, const size_t idx, const char *prefix, bool is_last) {
     if ((idx == 0 && t->size <= 1) || (idx >= t->size) ) return;                /* past last real node */
 
     Tnode *n = t_get(t, idx);
@@ -53,7 +58,7 @@ _print_ast_rec(String *s, Tnodes *t, size_t idx, const char *prefix, bool is_las
     printf("Node: %zu", idx);
     
     /* optional: also show the token type (very useful while debugging) */
-    if (n->type==TT_IDENTIFIER || n->type==TT_WORD || n->type==TT_HEX || n->type==TT_BIN || n->type==TT_NUM) {
+    if (_d_print_val(n->type) ) {
         //0//
         printf(" (");
         _tok_print(s, n->start, n->width);
@@ -84,6 +89,33 @@ _print_ast_rec(String *s, Tnodes *t, size_t idx, const char *prefix, bool is_las
     }
 }
 
+
+void
+_print_errs(Package *p, size_t pos) {
+    Err *err=&p->errors[pos];
+    
+    printf("%s:%zu:%zu: ", p->filename, err->tok->row, err->tok->column);
+    
+    printf("%s:\n      %s\n    %zu | ", err->type==TE_ERROR ? "error" : "internal_error" , _tok_errtype(err->mtype), err->tok->row );
+    
+    size_t line_start= err->tok->start - err->tok->column;
+    
+    _tok_print(&p->source, line_start, err->tok->column + err->tok->width);
+    printf("\n        ");
+    
+    for (size_t i=0; i < err->tpos + err->tok->column; ++i) {
+        printf(" "); //0//
+    }
+    for (size_t i=0; i < err->twidth; ++i) {
+        printf("^"); //0//
+    }
+    
+    
+    if (pos != p->e_size - 1) {
+        //0//
+        _print_errs(p, pos + 1);
+    }
+};
 
 //##########-surface_funcs-############//
 
@@ -154,8 +186,12 @@ d_toktype(TnodeType type) {
              return "KW_FOR";
         case TT_KW_RET:
              return "KW_RET";
-        case TT_KEYWORD:
-             return "KEYWORD";
+        case TT_KW_FUNC:
+             return "KW_FUNC";
+        case TT_KW_IMPORT:
+             return "KW_IMPORT";
+        case TT_KW_STRUCT:
+             return "KW_STRUCT";
         case TT_IDENTIFIER:
              return "IDENTIFIER";
         default:         
@@ -165,7 +201,7 @@ d_toktype(TnodeType type) {
 
 
 void
-d_print_ast(String *s, Tnodes *t, size_t root) {
+d_print_ast(String *s, Tnodes *t, const size_t root) {
     /* root line (no ├── / └──) */
     Tnode *n = t_get(t, root);
     printf("Node: %zu  (%s)\n", root, d_toktype(n->type) );
@@ -197,36 +233,11 @@ d_print_toks(String *s, Tnodes *t, size_t pos, size_t lim) {
     if (lim - 1!=0 && tok->type != TT_END) {
         //0//
         d_print_toks(s, t, pos + 1, lim - 1);
+    } else {
+        printf("%zu tokens\n\n", pos + 1);
     }
 };
 
-
-void
-_print_errs(Package *p, size_t pos) {
-    Err *err=&p->errors[pos];
-    
-    printf("%s:%zu:%zu: ", p->filename, err->tok->row, err->tok->column);
-    
-    printf("%s:\n      %s\n    %zu | ", err->type==TE_ERROR ? "error" : "internal_error" , _tok_errtype(err->mtype), err->tok->row );
-    
-    size_t line_start= err->tok->start - err->tok->column;
-    
-    _tok_print(&p->source, line_start, err->tok->column + err->tok->width);
-    printf("\n        ");
-    
-    for (size_t i=0; i < err->tpos + err->tok->column; ++i) {
-        printf(" "); //0//
-    }
-    for (size_t i=0; i < err->twidth; ++i) {
-        printf("^"); //0//
-    }
-    
-    
-    if (pos != p->e_size - 1) {
-        //0//
-        _print_errs(p, pos + 1);
-    }
-};
 
 void
 d_print_errs(Package *p) {

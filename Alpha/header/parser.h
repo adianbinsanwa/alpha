@@ -2,6 +2,8 @@
 #define PARSER_H
 
 #include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
 #include "dynamic_string.h"
 #include "tokens.h"
 #include "tools.h"

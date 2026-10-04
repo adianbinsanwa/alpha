@@ -1,8 +1,8 @@
 #include "../header/dynamic_string.h"
 
-char *s_a_zA_Z="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
-char *s_a_zA_Z_="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_";
-char *s_0_9="0123456789";
+const char *const s_a_zA_Z="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+const char *const s_a_zA_Z_="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_";
+const char *const s_0_9="0123456789";
 
 //###############################//
 
@@ -56,7 +56,7 @@ s_pull(String *array) {
 
 
 char *
-s_get(String *s, size_t index) {
+s_get(String *s, const size_t index) {
     if (index >= s->size) {
        return &s->ptr[s->size-2];   
     }
@@ -64,41 +64,8 @@ s_get(String *s, size_t index) {
 };
 
 
-size_t
-s_index(String *array, char target) {
-    for (size_t i=0; i < array->size; i++) {
-        if (array->ptr[i]== target) {
-            return i;
-        }
-    }
-    return array->size;
-};
-
-
-size_t
-s_merge(String *a, String *b) {
-    for (size_t i=0; i < b->size; i++) {
-        if (s_push(a, *s_get(b, i) )==SS_PUSH_ERR) {
-            return strlen(b->ptr)-i;
-        }
-    }
-    return 0;
-};
-
-
-size_t
-s_raw_merge(String *a, char *b) {
-    for (size_t i=0; i < strlen(b); i++) {
-        if (s_push(a, b[i])==SS_PUSH_ERR) {
-            return strlen(b)-i;
-        }
-    }
-    return 0;
-};
-
-
 bool
-s_member_of(char *string, char target) {
+s_member_of(const char *const string, const char target) {
     for (size_t i=0; string[i]!='\0'; ++i) {
         if (string[i]==target) {
             return true;
@@ -109,7 +76,7 @@ s_member_of(char *string, char target) {
 
 
 bool
-s_eq(char *a, char *b) {
+s_eq(const char *const a, const char *const b) {
     if (strlen(a)!=strlen(b) ) {
         return false;
     }
@@ -123,7 +90,7 @@ s_eq(char *a, char *b) {
 
 
 bool
-s_has_only_from(char *a, char *b) {
+s_has_only_from(char *a, const char *const b) {
     for (size_t i=0; i < strlen(a); ++i) {
         if (!s_member_of(b, a[i]) ) {
             return false;

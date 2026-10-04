@@ -1,11 +1,11 @@
 #include "../header/tokens.h"
 
 
-bool match_all=true;
-bool match_within=false;
+bool t_match_all=true;
+bool t_match_within=false;
 
 void
-print_tok(String *s, size_t pos, size_t width) {
+print_tok(String *s, const size_t pos, const size_t width) {
     for (size_t i=0; i < width; ++i) {
         if (s->ptr[pos+i]=='\n') {
             printf("\\newline");
@@ -60,13 +60,14 @@ tok_expand_paddin(Tnodes *t, size_t left, size_t right) {
 };
 
 
-Tnode *
+bool
 tok_new_scope(Tnodes *t) {
     if (!t_push(t, tok_node(0, 0, TT_SCOPE, 0, 0) ) ) {
-        return t_get(t, t->size - 1);
+        return false;
     }
-    return t_get(t, t->size - 2);
+    return true;
 };
+
 
 bool
 t_push(Tnodes *tns, Tnode tn) {
@@ -96,7 +97,7 @@ t_pull(Tnodes *t) {
 };
 
 bool
-tok_check(String *s, Tnode *tok, char *target, bool match_all) {
+tok_check(String *s, Tnode *tok, const char *const target, bool match_all) {
     char word[tok->width];
     
     for (size_t i=0; i < tok->width; ++i) {

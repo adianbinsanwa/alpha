@@ -1,14 +1,16 @@
 #ifndef TOKENS_H
 #define TOKENS_H
 
-#include<stdio.h>
-#include<stdlib.h>
-#include<stdbool.h>
+#include <stdio.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <stdbool.h>
 
 #include "dynamic_string.h"
 
-extern bool match_all;
-extern bool match_within;
+extern bool t_match_all;
+extern bool t_match_within;
 
 
 typedef enum {
@@ -58,9 +60,10 @@ typedef enum {
     TT_KW_ELSE,
     TT_KW_FROM,
     
-    TT_KEYWORD,
-    
     TT_KW_WHILE,
+    
+    TT_KW_IMPORT,
+    TT_KW_STRUCT,
     
     TT_IDENTIFIER
 } TnodeType;
@@ -90,7 +93,7 @@ bool t_push(Tnodes *tns, Tnode tn);
 
 bool t_pull(Tnodes *t);
 
-Tnode *t_get(Tnodes *t, size_t pos);
+Tnode *t_get(Tnodes *t, const size_t pos);
 
 void t_close(Tnodes *t);
 
@@ -100,7 +103,9 @@ Tnode tok_node(size_t start, size_t width, size_t type, size_t row, size_t colum
 
 Tnode *tok_expand_paddin(Tnodes *t, size_t left, size_t right);
 
-bool tok_check(String *s, Tnode *tok, char *target, bool match_all);
+bool tok_new_scope(Tnodes *t);
+
+bool tok_check(String *s, Tnode *tok, const char *const target, bool match_all);
 
 #endif //TOKENS_H
 
