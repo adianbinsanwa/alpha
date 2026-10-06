@@ -1,36 +1,29 @@
 #include "../header/parser.h"
 
 
-bool parse_tok(Package *p, size_t *pos, Tnode *tok);
+static bool parse_tok(Package *p, size_t *pos, Tnode *tok);
 
 
-void
-e_push(Package *p, Tnode *tok, size_t tpos, size_t twidth, TE_Type type, TE_Msg message) {
-   if (p->e_size!=MAX_ERR - 1) {
-      p->errors[p->e_size++]=(Err){.tok=tok, .tpos=tpos, .twidth=twidth, .type=type, .mtype=message};
-   } 
-};
 
-
-bool
+static inline bool
 _is_valid_tok(TnodeType type) {
    return type!=TT_SCOPE && type!=TT_PADDIN && type!=TT_END;
 } 
 
 
-bool
+static inline bool
 _is_linebreak(TnodeType type) {
    return type==TT_ENDLN || type==TT_COMMA;
 };
 
 
-bool
+static inline bool
 _is_literal(TnodeType type) {
    return type==TT_NUM || type==TT_BIN || type==TT_HEX || type==TT_STRING || type==TT_CHAR;
 };
 
 
-void
+static void
 _set_childs(Tnodes *t, const size_t left, const size_t pos, const size_t right) {
    Tnode *tok= t_get(t, pos);
    tok->right= right;
@@ -39,16 +32,16 @@ _set_childs(Tnodes *t, const size_t left, const size_t pos, const size_t right) 
 
 
 
-bool
-parse_scope(Package *p, size_t *pos, size_t scope_base, TnodeType end) {
+static bool
+parse_scope(Package *p, size_t *pos, size_t scope_base, bool is_brack) {
    /*
     * parses the current scope
     */
-   Tnode *tok;
+   TnodeType end= is_brack ? TT_RBRACK : TT_END; 
    
+   Tnode *tok;
    while ((tok=t_get(&p->tnode, *pos) )->type!=end && tok->type!=TT_END) {
       //0//
-      
       size_t current= *pos;
       //d_print_toks(&p->source, &p->tnode, current, 1);
       
@@ -59,25 +52,26 @@ parse_scope(Package *p, size_t *pos, size_t scope_base, TnodeType end) {
               break;
          case TT_ENDLN:
          case TT_COMMA:
-              if (get_last_tok(&p->tnode, scope_base)->left ) {
+              if (get_last_rtok(&p->tnode, scope_base)->left ) {
                  //2//
                  tok->type=TT_PADDIN;
-                 get_last_tok(&p->tnode, scope_base)->right=*pos;
+                 get_last_rtok(&p->tnode, scope_base)->right=*pos;
               }
               break;
          default: 
-              if (!parse_tok(p, pos, tok) ) {
-                  return false; //2//
-              }
-              get_last_tok(&p->tnode, scope_base)->left=current;
+              if (!parse_tok(p, pos, tok) ) return false;
+         
+              get_last_rtok(&p->tnode, scope_base)->left=current;
               continue;
       }
       ++(*pos);
    }   
-   if (tok->type!=end && end!=TT_END) {
-      return false; //0//
-   } 
-   get_last_tok(&p->tnode, scope_base)->right=*pos;
+   if (tok->type!=end) {
+      printf("unclosed '{' got: %s, expected: %s\n", d_toktype(tok->type), d_toktype(end) );
+      d_print_toks(&p->source, &p->tnode, *pos, 1);
+      return false;
+   }
+   get_last_rtok(&p->tnode, scope_base)->right=*pos;
    return true;
 };
 
@@ -89,13 +83,13 @@ parser(Package *p) {
     * main entry point for parser
     */
    size_t pos=1;
-   return parse_scope(p, &pos, 0, TT_END);
+   return parse_scope(p, &pos, 0, false);
 };
 
 //##########-parse_parts-###########//
 
 
-bool
+static bool
 parse_import(Package *p, Tnode *tok, const size_t prev, size_t *pos) {
    /*
     * parses import statements
@@ -108,17 +102,17 @@ parse_import(Package *p, Tnode *tok, const size_t prev, size_t *pos) {
       
       if (tok->type==TT_ENDLN) {
          //1//
-         if (!get_last_tok(&p->tnode, prev)->left) {
+         if (!get_last_rtok(&p->tnode, prev)->left) {
             printf("!!!$$\n");
             return false;
          }
          break;
       } else if (tok->type==TT_COMMA) {
          //1//
-         get_last_tok(&p->tnode, prev)->right= current;
+         get_last_rtok(&p->tnode, prev)->right= current;
       } else if (tok->type==TT_WORD) {
          //1//
-         get_last_tok(&p->tnode, prev)->left= current;
+         get_last_rtok(&p->tnode, prev)->left= current;
          tok->type= TT_IDENTIFIER;
       } else {
          //1//
@@ -132,7 +126,7 @@ parse_import(Package *p, Tnode *tok, const size_t prev, size_t *pos) {
 };
 
 
-bool
+static bool
 parse_param_val(Package *p, const size_t prev, size_t *pos) {
    /*
     * parses param with value
@@ -146,12 +140,12 @@ parse_param_val(Package *p, const size_t prev, size_t *pos) {
       
       if (nxt->type==TT_RPARAM) {
          //1//
-         if (!get_last_tok(&p->tnode, prev)->left) {
+         if (!get_last_rtok(&p->tnode, prev)->left) {
             //2//
             printf("error:\nfrom: parse_param_var\nissue: no ')'\n");
             return false;
          }
-         get_last_tok(&p->tnode, prev)->right= current;
+         get_last_rtok(&p->tnode, prev)->right= current;
          ++(*pos);
          break;
       } else if (_is_literal(nxt->type) || nxt->type==TT_WORD) {
@@ -161,11 +155,11 @@ parse_param_val(Package *p, const size_t prev, size_t *pos) {
             printf("!!!helll\n");
             return false;
          }
-         get_last_tok(&p->tnode, prev)->left= current;
+         get_last_rtok(&p->tnode, prev)->left= current;
          continue;
       } else if (_is_linebreak(nxt->type) ) {
          //1//
-         get_last_tok(&p->tnode, prev)->right= *pos;
+         get_last_rtok(&p->tnode, prev)->right= *pos;
          nxt->type= TT_PADDIN;
       } else {
          //1//
@@ -182,50 +176,76 @@ parse_param_val(Package *p, const size_t prev, size_t *pos) {
 };
 
 
-bool
-parse_param_var(Package *p, Tnode *nxt, const size_t prev, size_t *pos) {
+
+static bool
+parse_param_var(Package *p, const size_t prev, size_t *pos) {
    /*
     * parses variable declaration param
-    * e.g let '(x, y, z as int)' be (10, 20, 30)
+    * e.g let '(x, y, z as const int)' be (10, 20, 30)
     */
-   /*
-   int limit= 3, ppos= 0;
+   
+   int8_t ppos= 0;
+   const int8_t limit= 3, sp_vars= 0, sp_As= 1, sp_type= 2;
    size_t pcs[limit];
    
+   loop_set(2);
    
+   Tnode *nxt;
    while (_is_valid_tok((nxt= t_get(&p->tnode, *pos) )->type) ) {
       //0//
       size_t current=*pos;
+      
+      d_print_toks(&p->source, &p->tnode, current, 1);
+      
+      if (!loop_step() ) {
+         break;
+      }
       if (nxt->type==TT_RPARAM) {
          //1//
-         if () {
-            
+         if (ppos < limit) {
+            printf("daammmmm\n");
+            d_print_toks(&p->source, &p->tnode, 0, 0);
+            return false;
          }
+         ++ppos;
          break;
-      } else if () {
+      } else if (ppos == sp_As && tok_check(&p->source, nxt, "as", t_match_all) && get_last_rtok(&p->tnode, pcs[sp_vars])->type!=TT_PADDIN ) {
          //1//
-         
-      } else if (tok_check(&p->tnode) ) {
-         //1//
+         nxt->type= TT_KW_AS;
+         pcs[ppos++]= current;
          
       } else if (nxt->type==TT_WORD) {
          //1//
-         
+         nxt->type= TT_IDENTIFIER;
+         if (ppos <= sp_As) {
+            //2//
+            pcs[sp_vars]= ppos== sp_vars ? current : pcs[sp_vars];
+            get_last_rtok(&p->tnode, pcs[sp_vars])->right= current;
+            
+         }
+         ++ppos;
+      } else if (_is_linebreak(nxt->type) && ppos == sp_As) {
+         //1//
+         nxt->type= TT_PADDIN;
+         get_last_rtok(&p->tnode, pcs[sp_vars])->right= current;
       } else {
          //1//
          printf("isssue\n");
+         d_print_toks(&p->source, &p->tnode, current, 1);
          return false;
       }
       ++(*pos);
    }
-   if (nxt->type!=TT_RPARAM) {
-      return false;//0//
-   }*/
+   if (ppos==limit) {
+      Tnode *lparam= t_get(&p->tnode, prev);
+      lparam->left= pcs[sp_As];
+      lparam->right= *pos;
+   }
    return true;
 };
 
 
-bool
+static bool
 parse_var(Package *p, Tnode *tok, size_t prev, size_t *pos) {
    /*
     * parses variable declaration and definition statements
@@ -235,9 +255,9 @@ parse_var(Package *p, Tnode *tok, size_t prev, size_t *pos) {
     */
    tok->type= *s_get(&p->source, tok->start)=='s' ? TT_KW_SET : TT_KW_LET;
    
-   short ppos= 0;
+   int8_t ppos= 0;
    
-   const short limit= 3, sp_vars = 0, sp_Be = 1, sp_vals = 2;// sp= structure position
+   const int8_t limit= 3, sp_vars = 0, sp_Be = 1, sp_vals = 2;// sp= structure position
    size_t pcs[limit];
    //bool parse_next= false;
    
@@ -259,9 +279,9 @@ parse_var(Package *p, Tnode *tok, size_t prev, size_t *pos) {
       } else if (tok->type==TT_LPARAM && ppos== sp_vars) {
          //1//
          ++(*pos);
-         if (!parse_param_var(p, tok, current, pos) ) {
+         if (!parse_param_var(p, current, pos) ) {
             //2//
-            printf("isssuesss\n");
+            printf("isssuesss,,\n");
             return false;
          }
       } else if (tok_check(&p->source, tok, "be", t_match_all && ppos == sp_Be) ) {
@@ -273,7 +293,8 @@ parse_var(Package *p, Tnode *tok, size_t prev, size_t *pos) {
          
       } else {
          //1//
-         printf("issues\n");
+         printf("issuesf\n");
+         d_print_toks(&p->source, &p->tnode, *pos, 1);
          return false;
       }
       pcs[ppos++]= current;
@@ -293,7 +314,7 @@ parse_var(Package *p, Tnode *tok, size_t prev, size_t *pos) {
 };
 
 
-bool
+static bool
 parse_param_arg(Package *p, const size_t prev, size_t *pos) {
    /*
     * parses param arguments
@@ -313,8 +334,8 @@ parse_param_arg(Package *p, const size_t prev, size_t *pos) {
             printf("issue1\n");
             return false;
          }
-         get_last_tok(&p->tnode, prev)->left= ctok;
-         get_last_tok(&p->tnode, prev)->right= current;
+         get_last_rtok(&p->tnode, prev)->left= ctok;
+         get_last_rtok(&p->tnode, prev)->right= current;
          
          break;
       } else if (tok_check(&p->source, t_get(&p->tnode, *pos), "as", t_match_all) && !ctok) {
@@ -334,7 +355,7 @@ parse_param_arg(Package *p, const size_t prev, size_t *pos) {
             ltok= current;//2//
          } else {
             //2//
-            get_last_tok(&p->tnode, ctok)->right=*pos;
+            get_last_rtok(&p->tnode, ctok)->right=*pos;
          }
          nxt->type= TT_IDENTIFIER;
       } else if (_is_linebreak(nxt->type) && ctok) {
@@ -346,8 +367,8 @@ parse_param_arg(Package *p, const size_t prev, size_t *pos) {
          }
          nxt->type= TT_PADDIN;
          
-         get_last_tok(&p->tnode, prev)->left= ctok;
-         get_last_tok(&p->tnode, prev)->right= current;
+         get_last_rtok(&p->tnode, prev)->left= ctok;
+         get_last_rtok(&p->tnode, prev)->right= current;
          
          ctok=0;
          ltok=0;
@@ -367,8 +388,9 @@ parse_param_arg(Package *p, const size_t prev, size_t *pos) {
 };
 
 
-bool
-parse_brack(Package *p, Tnode *tok, const size_t prev, size_t *pos) {
+
+static bool
+parse_brack(Package *p, Tnode *tok, const size_t prev, size_t *pos, bool post_inc) {
    /*
     * parses local scope
     * e.g {
@@ -383,48 +405,47 @@ parse_brack(Package *p, Tnode *tok, const size_t prev, size_t *pos) {
    }
    tok->right= p->tnode.size - 2;
    
-   return parse_scope(p, pos, tok->right, TT_RBRACK);
+   bool ret= parse_scope(p, pos, tok->right, true);
+   
+   if (post_inc) ++(*pos);
+   return ret;
 };
 
 
-bool
+
+static bool
 parse_func(Package *p, Tnode *tok, const size_t prev, size_t *pos) {
    /*
     * parses function
     */
    tok->type= TT_KW_FUNC;
    
-   short ppos= 0;//current pcs pos
+   int8_t ppos= 0;//current pcs pos
    
    //structure points
-   const short limit= 4, sp_name = 0, sp_param = 1, sp_Return = 2, sp_body = 3;//parts limit // sp= structure position// func name, func param, func return, func body
-   
+   const int8_t limit= 4, sp_name = 0, sp_param = 1, sp_Return = 2, sp_body = 3;//parts limit // sp= structure position// func name, func param, func return, func body
    size_t pcs[limit];//[0] = <func_name>, [1] = arguments, [2] = "return" keyword, [3] = return type, [4] = function body
    
    
-   while (_is_valid_tok((tok= t_get(&p->tnode, *pos) )->type) ) {
+   while (_is_valid_tok((tok= t_get(&p->tnode, *pos) )->type) && ppos != limit ) {
       //0//
       size_t current= *pos;
-      printf("ppos: %d, pos: %zu\n", ppos, *pos);
       
-      if (ppos == limit) {
+      if (ppos == sp_body) {
          //1//
-         break; 
-      } else if (ppos == sp_body) {
-         //1//
-         //d_print_toks(&p->source, &p->tnode, *pos, 1);
          if (tok->type== TT_LBRACK) {
             //2//if '{' and ppos is at 4
             ++(*pos);//pre inc pos
-            if (!parse_brack(p, tok, current, pos) ) {
+            if (!parse_brack(p, tok, current, pos, false) ) {
                //3//
-               printf("issuesss\n");
                return false;
             }
+            
             t_get(&p->tnode, pcs[sp_name])->right= current;
          } else if (tok->type == TT_WORD) {
             //2//
-            get_last_tok(&p->tnode, pcs[sp_Return])->right= current;
+            get_last_rtok(&p->tnode, pcs[sp_Return])->right= current;
+            
             tok->type= TT_IDENTIFIER;
          } 
          if (_is_linebreak(tok->type) || tok->type == TT_IDENTIFIER) {
@@ -432,7 +453,6 @@ parse_func(Package *p, Tnode *tok, const size_t prev, size_t *pos) {
             ++(*pos);
             continue;
          }
-         printf("%s\n", d_toktype(tok->type) );
       } else if (tok_check(&p->source, tok, "return", t_match_all) && ppos == sp_Return) {
          //1//
          t_get(&p->tnode, pcs[sp_name])->left= current;
@@ -448,7 +468,7 @@ parse_func(Package *p, Tnode *tok, const size_t prev, size_t *pos) {
          //1//if '(' and ppos is at 1
          ++(*pos);//pre inc pos
          if (!parse_param_arg(p, current, pos) ) {
-            printf("issues\n");
+            printf("issues..\n");
             return false;
          }
       } else {
@@ -467,7 +487,8 @@ parse_func(Package *p, Tnode *tok, const size_t prev, size_t *pos) {
 };
 
 
-bool
+
+static bool
 parse_flags(Package *p, Tnode *tok, const size_t prev, size_t *pos) {
    if (!parse_tok(p, pos, t_get(&p->tnode, *pos) ) ) {
       printf("!!error!!\n");
@@ -478,9 +499,43 @@ parse_flags(Package *p, Tnode *tok, const size_t prev, size_t *pos) {
 };
 
 
-bool
+
+static bool
 parse_struct(Package *p, Tnode *tok, const size_t prev, size_t *pos) {
    tok->type= TT_KW_STRUCT;
+   
+   int8_t ppos= 0;
+   
+   const int8_t limit= 2, sp_name= 0, sp_body= 1;
+   size_t pcs[limit];
+   
+   while (_is_valid_tok((tok= t_get(&p->tnode, *pos) )->type) && !_is_linebreak(tok->type) && ppos != limit) {
+      //0//
+      size_t current= *pos;
+      
+      if (tok->type==TT_WORD && ppos == sp_name) {
+         //1//
+         tok->type= TT_IDENTIFIER;
+         get_last_ltok(&p->tnode, prev)->left= current;
+         
+         pcs[ppos++]= current;
+      } else if (tok->type==TT_LPARAM && ppos <= sp_body) {
+         //1//
+         ++(*pos);
+         if (!parse_param_arg(p, current, pos) ) {
+            //2//
+            printf("!!!issssuusu\n");
+            return false;
+         }
+         get_last_ltok(&p->tnode, prev)->left= current;
+         
+         pcs[ppos++]= current;
+      } else {
+         printf("invalid stuff\n");
+         return false;
+      }
+      ++(*pos);
+   }
    
    return true;
 };
@@ -489,7 +544,7 @@ parse_struct(Package *p, Tnode *tok, const size_t prev, size_t *pos) {
 //##############-main_hub-#############//
 
 
-bool
+static bool
 parse_tok(Package *p, size_t *pos, Tnode *tok) {
    /*
     * central hub for routing statements
@@ -501,7 +556,7 @@ parse_tok(Package *p, size_t *pos, Tnode *tok) {
       return parse_import(p, tok, prev, pos);
    } else if (tok->type==TT_LBRACK) {
       //0//
-      return parse_brack(p, tok, prev, pos);
+      return parse_brack(p, tok, prev, pos, true);
    } else if (tok->type==TT_LPARAM) {
       //0//
       return parse_param_val(p, prev, pos);

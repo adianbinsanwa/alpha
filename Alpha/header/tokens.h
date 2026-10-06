@@ -87,7 +87,7 @@ typedef struct {
 } Tnodes;
 
 
-Tnodes t_open();
+Tnodes t_open(void);
 
 bool t_push(Tnodes *tns, Tnode tn);
 
@@ -97,7 +97,9 @@ Tnode *t_get(Tnodes *t, const size_t pos);
 
 void t_close(Tnodes *t);
 
+
 //##########-token_funcs-############//
+
 
 Tnode tok_node(size_t start, size_t width, size_t type, size_t row, size_t column);
 

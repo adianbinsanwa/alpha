@@ -8,9 +8,10 @@
  *     proper word checking at :- word_type(),
  */
 
-bool char_scanner(FILE *pf, Package *p);
+static bool char_scanner(FILE *pf, Package *p);
 
-TnodeType
+
+static TnodeType
 symbol_type(char symb) {
     switch (symb) {
         case '(': 
@@ -30,13 +31,13 @@ symbol_type(char symb) {
         case '"':
              return TT_STRING;
         default:
-             return 0;
+             return TT_END;
     }
 };
 
 
 
-TnodeType
+static TnodeType
 word_type(String *s, const size_t pos, const size_t width, const size_t row, const size_t column) {
     char word[width];
     word[width]='\0';
@@ -64,13 +65,13 @@ word_type(String *s, const size_t pos, const size_t width, const size_t row, con
 };
 
 
-size_t
+static inline size_t
 get_column(const size_t a, const size_t b) {
     return a - b;
 };
 
 
-bool
+static inline bool
 check_last_toktype(Tnodes *t, TnodeType istype) {
     return t->val[t->size-2].type==istype;
 };
@@ -87,12 +88,15 @@ lexer(Package *p) {
         perror(p->filename);
         return false;
     }
-    return char_scanner(pfile, p);//tokenize
+    bool ret= char_scanner(pfile, p);//tokenize
+    
+    fclose(pfile);//close file
+    return ret;
 };
 
 //############-tokenizer-#############//
 
-bool
+static bool
 char_scanner(FILE *pf, Package *p) {
     /*load file and manage line ends
      *split words/chars and pack tokens
@@ -101,13 +105,11 @@ char_scanner(FILE *pf, Package *p) {
     */
     //system
     
-    size_t pos=0;//current pos throughout the whole file string
-    size_t column=0;//column count
-    size_t row=1;//row count
+    size_t row=1, column=0, pos=0;//row count//column count//current pos throughout the whole file string
+    
     //helpers
     char quote='\0';//quote holder indicating in quotes + which quote "=2/'=1/none=0
-    size_t w_size=0;//counts the size of the word
-    size_t w_start;//holds the start pos of a word
+    size_t w_size=0, w_start= 0;//counts the size of the word //holds the start pos of a word
     
     //error to return when something internal goes wrong
     bool ierr=false;
@@ -119,7 +121,7 @@ char_scanner(FILE *pf, Package *p) {
     }
     
     
-    int8_t a;
+    int8_t a= 0;
     while ((a=fgetc(pf) ) != EOF) {
         //0//
         char atom=(char)a;//cast int a to char
@@ -280,9 +282,10 @@ char_scanner(FILE *pf, Package *p) {
     } else if (check_last_toktype(&p->tnode, TT_COMMA) ) {
         //0//if last token was newline → remove it from tnodes and source
         printf("error: invalid ','");
+        return false;
     } else if (t_get(&p->tnode, p->tnode.size - 2)->type==TT_ENDLN) {
+        //0//
         t_pull(&p->tnode);
     }
-    fclose(pf);//close file
     return true;
 };

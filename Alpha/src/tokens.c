@@ -4,16 +4,6 @@
 bool t_match_all=true;
 bool t_match_within=false;
 
-void
-print_tok(String *s, const size_t pos, const size_t width) {
-    for (size_t i=0; i < width; ++i) {
-        if (s->ptr[pos+i]=='\n') {
-            printf("\\newline");
-        } else {
-            printf("%c", s->ptr[pos+i]);
-        }
-    }
-};
 
 
 Tnodes
@@ -38,11 +28,8 @@ tok_node(size_t start, size_t width, size_t type, size_t row, size_t column) {
 
 
 Tnode *
-t_get(Tnodes *t, size_t pos) {
-    if (pos > t->size-2) {
-        return &t->val[t->size-1];
-    }
-    return &t->val[pos];
+t_get(Tnodes *t, const size_t pos) {
+    return &t->val[pos > t->size-2 ? t->size-1 : pos];
 };
 
 
@@ -53,19 +40,13 @@ tok_expand_paddin(Tnodes *t, size_t left, size_t right) {
     paddin.left=left; 
     paddin.right=right;
     
-    if (!t_push(t, paddin) ) {
-        return t_get(t, t->size - 1);
-    }
-    return t_get(t, t->size - 2);
+    return t_get(t, t->size - (t_push(t, paddin) ? 2 : 1));
 };
 
 
 bool
 tok_new_scope(Tnodes *t) {
-    if (!t_push(t, tok_node(0, 0, TT_SCOPE, 0, 0) ) ) {
-        return false;
-    }
-    return true;
+    return t_push(t, tok_node(0, 0, TT_SCOPE, 0, 0) ) ? true : false;
 };
 
 
@@ -73,9 +54,7 @@ bool
 t_push(Tnodes *tns, Tnode tn) {
     if (!tns->capacity) {    
         Tnode *new=realloc(tns->val, (tns->size + 1) * sizeof(*tns->val) );
-        if (!new) {
-            return false;
-        }
+        if (!new) return false;
         tns->val=new;
     } else {
         --tns->capacity;
@@ -88,22 +67,23 @@ t_push(Tnodes *tns, Tnode tn) {
 
 bool
 t_pull(Tnodes *t) {
-    if (!t->val) {
-        return false;
-    }
+    if (!t->val) return false;
     t->val[--t->size-1]=tok_node(0, 0, TT_END, 0, 0);
     ++t->capacity;
     return true;
 };
 
+
+
 bool
 tok_check(String *s, Tnode *tok, const char *const target, bool match_all) {
     char word[tok->width];
+    word[tok->width]='\0';
     
     for (size_t i=0; i < tok->width; ++i) {
         word[i]=*s_get(s, tok->start + i);
     }
-    word[tok->width]='\0';
+    
     return match_all ? s_eq(word, target) : s_has_only_from(word, target);
 };
 

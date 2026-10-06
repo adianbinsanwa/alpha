@@ -1,6 +1,7 @@
 #ifndef DYNAMIC_STRING_H
 #define DYNAMIC_STRING_H
 
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -36,7 +37,7 @@ STRING_STATUS s_push(String *array, char c);
 
 STRING_STATUS s_pull(String *array);
 
-char *s_get(String *s, size_t index);
+const char *const s_get(String *s, const size_t index);
 
 bool s_member_of(const char *const string, const char target);
 
